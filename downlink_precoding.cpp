@@ -154,7 +154,7 @@ int main(int argc, char *argv[]){
     pl_dB=12.81+ 3.76* log10(d); // PL = 128.1 + 37.6 log_{10}(d)
     double pl;
     pl=1/(inv_dB(pl_dB));
-	cout<<"path loss"<<pl<<endl; // pl = 0.0466729
+	//cout<<"path loss"<<pl<<endl; // pl = 0.0466729
     /* Multiply pl with H_pbc[0][c] c=1:C-1 */
     for(int p=0;p<P;p++){
 	    for(int i=1;i<C;i++){
@@ -194,7 +194,7 @@ int main(int argc, char *argv[]){
     for(int i=0;i<U;i++){
 		//cout<<"alpha_bcu a value"<<alpha_bcu[0][0][i]<<endl;
 		a_bb[i]=pow(alpha_bcu[0][0][i], v);
-		cout<<"a vec"<<a_bb[i]<<endl;
+		//cout<<"a vec"<<a_bb[i]<<endl;
     }
 
 	//cout<<a_bb[0]<<endl;
@@ -212,17 +212,18 @@ int main(int argc, char *argv[]){
 		    }
 	}
 
-	cvec hsbu_n_n[U];
-	cvec hsbu_n_n_1[U];
+	cvec hsbu_n_n[U];   // hsbu_n_n means h stacked with n given n
+	cvec hsbu_n_n_1[U]; // hsbu_n_n_1 means h stacked with n given n-1
 	cmat psbu_n_n[U];
 	cmat psbu_n_n_1[U];
-	
+	cmat p_bu[U];
 	/* Initialisation of kalman filter */
 	for(int i=0;i<U;i++){
 	    for(int j=l-1;j>=0;j--){
             hsbu_n_n[i]=concat(hsbu_n_n[i],y_tilde[j][i]);
 	    }
 	}
+	
 	for(int i=0;i<U;i++){
 	    psbu_n_n[i]=outer_product(hsbu_n_n[i],conj(hsbu_n_n[i]));
 	}
@@ -254,26 +255,53 @@ int main(int argc, char *argv[]){
             hsu_n_n_1=kron(A_u[p],eye(Nt))*hsu_n_n;
             psu_n_n_1=kron(A_u[p],eye(Nt))*psu_n_n*hermitian_transpose(kron(A_u[p],eye(Nt)))+Q_w;
             k_gain_p=psu_n_n_1* hermitian_transpose(c_kron)* inv(c_kron*psu_n_n_1*hermitian_transpose(c_kron)+ c_kron*Qv*hermitian_transpose(c_kron));
-            hsu_n_n=hsu_n_n_1+k_gain_p*(y_tilde[i][p]-((c_kron*hsu_n_n_1).get_col(0))); // U did this bcoz c_kron*hsu_n_n_1 is a cvec of form cmat
+            hsu_n_n=hsu_n_n_1+k_gain_p*(y_tilde[i][p]-((c_kron*hsu_n_n_1).get_col(0))); // c_kron*hsu_n_n_1 is a cvec of form cmat
             psu_n_n=( eye(Nt*l)-(k_gain_p*c_kron) )*psu_n_n_1;
 			
             // populate arrays
             K_gain[p][i]=k_gain_p;
             h_hat[p]=hsu_n_n;
+            p_bu[p]=psu_n_n;
 		}
 	}
+	
+	cmat Fb;  // Precoding matrix for b-th cell
+	Fb.set_size(Nt,U);
+	Fb=zeros_c(Nt,U);
+	cvec h_hat_vec[U];
+	cmat P_bu[U]; // P_bu is extraction from stacked p_bu
+	/*Extracting p_bu from stacked version of p_bu */
+	for(int i=0;i<U;i++){									
+		//cout<<"h_hat["<<i<<"] = "<<h_hat[i]<<endl;
+		h_hat_vec[i]=h_hat[i];
+		h_hat_vec[i]=c_kron*h_hat_vec[i];
+		Fb.set_col(i,h_hat_vec[i]);
+		//cout<<"h_hat_vec "<<h_hat_vec<<endl;
+		//cout<<"Fb["<<i<<"] = "<<Fb<<endl;
+		P_bu[i]=c_kron*p_bu[i];
+		P_bu[i]=P_bu[i]*transpose(c_kron);
+		//cout<<"P_bu "<<i<<"] = "<<P_bu[i]<<endl;
+	}
+	
+	/* Finding lambda for precoding matrix */
+	double lambda;
+	cvec f_bu[U];
+	cmat H_pre[U];
+
+	for(int i=0;i<U;i++){
+		H_pre[i]=outer_product(h_hat_vec[i],conj(h_hat_vec[i])) + P_bu[i];
+		//f_bu[i]=2*(2*lambda*eye(Nt) + )	
+	}
+    
 
 
 
 
 
-
-
-
-
-
-
-
+	
+	
+	
+	
 
 
 
