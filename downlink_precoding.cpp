@@ -20,9 +20,9 @@ namespace itpp {
 int main(int argc, char *argv[]){
 	int iter=10;	  // No. of iterations
 	int C=3;		  // # of cells in a network
-	int U=2;	      // # of active users in each cell (worst case)
-	int N=4;          // # of maximum transmitting antennas at each base station
-	int P=9; 	      // total length of past samples of y/h_bcu used (Samples for operating)
+	int U=12;	      // # of active users in each cell (worst case)
+	int N=20;          // # of maximum transmitting antennas at each base station
+	int P=19; 	      // total length of past samples of y/h_bcu used (Samples for operating)
 	it_file ff;
 	Real_Timer tt; 
 	tt.tic();
@@ -52,10 +52,10 @@ int main(int argc, char *argv[]){
 	ivec Nt_vals = linspace_fixed_step(20, N, 10);
 	int Nt;	
 	int no_iterations_in_antenna;
-	//no_iterations_in_antenna=((N-Nt_vals[0])/10)+1;
-	//vec Data_Rate[no_iterations_in_antenna];
+	no_iterations_in_antenna=((N-Nt_vals[0])/10)+1;
+	vec Data_Rate[no_iterations_in_antenna];
 	int count=0;
-	Nt=N; // look here loop terminating guy
+	//Nt=N; // look here loop terminating guy
 
 	QPSK qpsk;                     //The QPSK modulator class   
 	AWGN_Channel awgn_channel;     //The AWGN channel class
@@ -73,6 +73,11 @@ int main(int argc, char *argv[]){
 	cout<<"No. of Cells Selected ="<<C<<endl;
 	cout<<"No. of Users Selected ="<<U<<endl;
 	cout<<"No. of antennas at each base station ="<<N<<endl;
+
+	for (int Nt : Nt_vals) {
+         final_sum_rate="0.0";
+         for (int it = 0; it < iter; ++it) {
+			cout<<"The iteration number is ="<<it<<endl;     
 
 	/* QPSK Symbol generation */
 	int Number_of_bits;
@@ -284,28 +289,130 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Finding lambda for precoding matrix */
-	double lambda;
+	double lambda = U;  // lagrangian lambda
 	cvec f_bu[U];
 	cmat H_pre[U];
-
+	double lambda_b; // Normalizig factor to have avg transmit power constraint at b=0 base station
+	double alpha_b=1.0;
+	double pf=1.0;
+	cvec y_downlink[U];
+	cvec interference[C-1];
+	cvec noise[U];
+	vec sig_pow[U];
+	vec int_pow;
+	vec noise_pow[U];
+	vec sinr[U];
+	vec rate[U];
+	vec sum_rate="0.0";
+ 
 	for(int i=0;i<U;i++){
 		H_pre[i]=outer_product(h_hat_vec[i],conj(h_hat_vec[i])) + P_bu[i];
-		//f_bu[i]=2*(2*lambda*eye(Nt) + )	
+		f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
 	}
-    
+    /* f_bu should be multiplied by normalizer*/
 
-
-
-
-
+    for(int i=0;i<U;i++){
+		//cout<<"f_bu["<<i<<"] = "<<f_bu[i]<<endl;
+		Fb.set_col(i,f_bu[i]);
+		//cout<<"Fb["<<i<<"] = "<<Fb<<endl;
+	}
 	
+	cmat dumFb=Fb*hermitian_transpose(Fb);
+	std::complex< double > trace_lambda;
+	trace_lambda=trace(dumFb);
+	lambda_b=1.0/real(trace_lambda);
+	cout<<"lambda_b "<<lambda_b<<endl;	
 	
+	// Multiplying with alpha_b*b=(sqrt(p_f * lambda_b)) to normalize f_bu
+	Fb= sqrt(pf * lambda_b)*Fb; // didn't normalize in calculating f_bu 
 	
+	/* Calculating signal component in the downlink signal */
+	for(int i=0;i<U;i++){
+		y_downlink[i]="0+0i";
+		//cout<<"h_pbcu[P-1][0][0][i] = "<<h_pbcu[P-1][0][0][i]<<endl;
+		y_downlink[i]=sqrt(pf*lambda_b)*conj(h_pbcu[P-1][0][0][i])*Fb.get_col(i)*transmitted_symbols(i); 
+	}
 	
+	/* Interference power */
+	cmat Fc[C-1];
+	vec lambda_c(C-1);
+	cvec dummy_h_interfere;
+	cmat dummy_Fc;
+	dummy_Fc.set_size(Nt,U);
+
+	for(int i=1;i<C;i++){
+		for(int j=0;j<U;j++){
+			dummy_Fc.set_col(j,h_pbcu[P-1][i][i][j]);		
+		}
+		Fc[i-1] =pl*dummy_Fc;
+		//cout<<"Fc["<<i<<"-1] "<<Fc[i-1]<<endl;
+		cmat dumFc=dummy_Fc*hermitian_transpose(dummy_Fc);
+		std::complex< double > trace_lambda;
+		trace_lambda=trace(dumFc);
+		lambda_c(i-1)=1.0/real(trace_lambda);
+		//cout<<"lambda_c "<<i<<"="<<lambda_c[i-1]<<endl;	
+	}
+
+	for(int i=0;i<C-1;i++){
+		interference[i]	= "0+0i";	
+		for(int j=0;j<U;j++){
+			interference[i]	=interference[i]+sqrt(pf*lambda_c(i))*conj(Fc[i].get_col(j))*Fc[i].get_col(j)*transmitted_symbols(0); //picking first transmitted symbol
+			//cout<<"inner interference[i] "<<interference[i]<<endl;	
+		}	
+	//cout<<"outer"<<endl;
+	}
+	
+	int_pow="0.0";
+	for(int i=0;i<C-1;i++){
+		int_pow=int_pow+sqr(abs(interference[i]));
+		//cout<<"interer "<<int_pow<<endl;
+	}
+	vec interference_pow;
+	interference_pow=int_pow;
+	//cout<<"interference_pow"<<interference_pow<<endl;
+	/* Noise Power */
+	for(int i=0;i<U;i++){
+		noise[i]=randn_c(1);
+	}
+	int noise_power=1;
+	int interference_power=1;
+	
+	/* Data Rate */
+	for(int i=0;i<U;i++){
+		sig_pow[i]=sqr(abs(y_downlink[i]));
+		//cout<<"sig_power["<<i<<"] = "<<sig_pow[i]<<endl;
+		noise_pow[i]=noise_power*sqr(abs(noise[i]));
+		//cout<<"noise_power["<<i<<"] = "<<noise_pow[i]<<endl;
+		//cout<<"int"<<interference_pow<<endl;
+		sinr[i]=elem_div(sig_pow[i],(interference_power*interference_pow+noise_pow[i]));
+		//cout<<"sinr["<<i<<"] "<<sinr[i]<<endl;
+		rate[i]=log2(1+sinr[i]);
+		//cout<<"rate["<<i<<"] "<<rate[i]<<endl;	
+	}
+
+	for(int i=0;i<U;i++){
+		sum_rate=sum_rate+rate[i];
+	}
+	
+	final_sum_rate+=sum_rate;
+	//cout<<"Total sum rate = "<<sum_rate<<endl;
+	}
+	avg_sum_rate=final_sum_rate/iter;
+
+                cout<<"average of sum rates for "<<Nt<<" antennas "<<avg_sum_rate<<endl;
 
 
-
-
+                Data_Rate[count]=avg_sum_rate;
+                ++count;
+        }
+        
+        vec dr(no_iterations_in_antenna);
+        for(int i=0;i<no_iterations_in_antenna;i++){
+                dr(i)=Data_Rate[i][0];
+                cout<<Data_Rate[i]<<"  "<<endl;
+		}
+		tt.toc();
+		tt.toc_print();
 
 return 0;
 }
