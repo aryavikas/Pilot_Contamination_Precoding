@@ -18,11 +18,11 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]) {
-	int iter=50;		// No. of iterations
-	int C=7;		// # of cells in a network
+	int iter=10;		// No. of iterations
+	int C=3;		// # of cells in a network
 	int U=12;	    // # of active users in each cell (worst case)
-	int N=70;       // # of maximum transmitting antennas at each base station
-	int P=52; 	    // total length of past samples of y/h_bcu used
+	int N=20;       // # of maximum transmitting antennas at each base station
+	int P=19; 	    // total length of past samples of y/h_bcu used
 	it_file ff;
 	Real_Timer tt; 
 	tt.tic();
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
                 cout << "P = " << P << "\n";
         }
 
-    int l=25;        // # of past samples considered
+    int l=3;        // # of past samples considered
     vec final_sum_rate="0.0"; // stores the total sum
     vec avg_sum_rate="0.0";   // average of data rates for U users
     ivec Nt_vals = linspace_fixed_step(20, N, 10);
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
 	cout<<"No. of Cells Selected ="<<C<<endl;
     cout<<"No. of Users Selected ="<<U<<endl;
-    
+    cout<<"No. of antennas at each base station ="<<Nt<<endl;
     
     
     
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
          final_sum_rate="0.0";
          for (int it = 0; it < iter; ++it) {
 			cout<<"The iteration number is ="<<it<<endl;         
-     cout<<"No. of antennas at each base station ="<<Nt<<endl;
+     
     /* QPSK Symbol generation */
     int Number_of_bits;
     bvec transmitted_bits;
