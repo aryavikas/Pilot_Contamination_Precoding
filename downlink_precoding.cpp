@@ -18,7 +18,7 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]){
-	int iter=10;	  // No. of iterations
+	int iter=100;	  // No. of iterations
 	int C=3;		  // # of cells in a network
 	int U=12;	      // # of active users in each cell (worst case)
 	int N=20;          // # of maximum transmitting antennas at each base station
@@ -72,10 +72,11 @@ int main(int argc, char *argv[]){
 
 	cout<<"No. of Cells Selected ="<<C<<endl;
 	cout<<"No. of Users Selected ="<<U<<endl;
-	cout<<"No. of antennas at each base station ="<<N<<endl;
+	
 
 	for (int Nt : Nt_vals) {
          final_sum_rate="0.0";
+         cout<<"No. of antennas at each base station ="<<Nt<<endl;
          for (int it = 0; it < iter; ++it) {
 			cout<<"The iteration number is ="<<it<<endl;     
 
@@ -289,7 +290,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Finding lambda for precoding matrix */
-	double lambda = U;  // lagrangian lambda
+	double lambda = 900000000*U;  // lagrangian lambda
 	cvec f_bu[U];
 	cmat H_pre[U];
 	double lambda_b; // Normalizig factor to have avg transmit power constraint at b=0 base station
@@ -320,12 +321,13 @@ int main(int argc, char *argv[]){
 	cmat dumFb=Fb*hermitian_transpose(Fb);
 	std::complex< double > trace_lambda;
 	trace_lambda=trace(dumFb);
-	lambda_b=1.0/real(trace_lambda);
+	lambda_b=1.0; // see here
+	//lambda_b=1.0/real(trace_lambda);
 	cout<<"lambda_b "<<lambda_b<<endl;	
 	
 	// Multiplying with alpha_b*b=(sqrt(p_f * lambda_b)) to normalize f_bu
 	Fb= sqrt(pf * lambda_b)*Fb; // didn't normalize in calculating f_bu 
-	
+	lambda_b=1.0/real(trace_lambda);//see here
 	/* Calculating signal component in the downlink signal */
 	for(int i=0;i<U;i++){
 		y_downlink[i]="0+0i";
@@ -374,8 +376,8 @@ int main(int argc, char *argv[]){
 	for(int i=0;i<U;i++){
 		noise[i]=randn_c(1);
 	}
-	int noise_power=1;
-	int interference_power=1;
+	int noise_power=10;
+	int interference_power=10;
 	
 	/* Data Rate */
 	for(int i=0;i<U;i++){
