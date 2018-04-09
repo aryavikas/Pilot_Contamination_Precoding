@@ -2,8 +2,10 @@
 #include <iostream>
 #include <complex>
 #include <cstdlib>
+#include<fstream>
 
 using namespace itpp;
+using namespace std;
 using std::cout;
 using std::endl;
 
@@ -18,10 +20,10 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]){
-	int iter=100;	  // No. of iterations
+	int iter=1;	  // No. of iterations
 	int C=3;		  // # of cells in a network
-	int U=12;	      // # of active users in each cell (worst case)
-	int N=20;          // # of maximum transmitting antennas at each base station
+	int U=3;	      // # of active users in each cell (worst case)
+	int N=3;          // # of maximum transmitting antennas at each base station
 	int P=19; 	      // total length of past samples of y/h_bcu used (Samples for operating)
 	it_file ff;
 	Real_Timer tt; 
@@ -46,10 +48,10 @@ int main(int argc, char *argv[]){
 	P = atoi(argv[5]);
 	cout << "P = " << P << "\n";
 	}
-	int l=3;        // # of past samples considered
+	int l=6;        // # of past samples considered 
 	vec final_sum_rate="0.0"; // stores the total sum
 	vec avg_sum_rate="0.0";   // average of data rates for U users
-	ivec Nt_vals = linspace_fixed_step(20, N, 10);
+	ivec Nt_vals = linspace_fixed_step(3, N, 10);                  //some change
 	int Nt;	
 	int no_iterations_in_antenna;
 	no_iterations_in_antenna=((N-Nt_vals[0])/10)+1;
@@ -73,7 +75,7 @@ int main(int argc, char *argv[]){
 	cout<<"No. of Cells Selected ="<<C<<endl;
 	cout<<"No. of Users Selected ="<<U<<endl;
 	
-
+	//for(int Nt=20;Nt<=N;Nt+10){
 	for (int Nt : Nt_vals) {
          final_sum_rate="0.0";
          cout<<"No. of antennas at each base station ="<<Nt<<endl;
@@ -118,7 +120,7 @@ int main(int argc, char *argv[]){
 	vec alpha_bcu[C][C];  // alpha with range 0.005 to 0.05 uniformly
     for(int i=0;i<C;i++) {
 		for(int j=0;j<C;j++){
-			vec fDTs= 0.1 + (0.3-0.1)*randu(U);
+			vec fDTs= 0.005 + (0.05-0.005)*randu(U);
 		    alpha_bcu[i][j]=besselj(0,2*3.14*fDTs);
 		    //cout<<alpha_bcu[i][j][k]<<endl;
 		}
@@ -290,7 +292,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Finding lambda for precoding matrix */
-	double lambda = 900000000*U;  // lagrangian lambda
+	double lambda = 999900000*U;  // lagrangian lambda
 	cvec f_bu[U];
 	cmat H_pre[U];
 	double lambda_b; // Normalizig factor to have avg transmit power constraint at b=0 base station
@@ -305,11 +307,50 @@ int main(int argc, char *argv[]){
 	vec sinr[U];
 	vec rate[U];
 	vec sum_rate="0.0";
- 
+	
 	for(int i=0;i<U;i++){
 		H_pre[i]=outer_product(h_hat_vec[i],conj(h_hat_vec[i])) + P_bu[i];
 		f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
 	}
+    
+    /* Saving vectors in data file*/
+/*	ofstream myfile ("pilot_contamination_data.txt");
+	if(myfile.is_open()){
+		myfile<<"N0. of antenas="<<Nt<<endl;
+		for(int i=0;i<U;i++){
+			myfile<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
+			cout<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
+		}
+		for(int i=0;i<U;i++){
+			myfile<<"H_pretranspose["<<i<<"]=\n"<<transpose(H_pre[i])<<"\n";
+		}
+		for(int i=0;i<U;i++){
+			myfile<<"h_hat["<<i<<"]=\n"<<h_hat_vec[i]<<"\n";
+		}
+		myfile<<"End \n";
+		myfile.close();
+	}
+	*/	 
+
+	/* Saving vectors in csv file */
+	ofstream myfile("data_pilot_contamination.csv");
+	if(myfile.is_open()){
+		myfile<<"N0. of antenas="<<Nt<<endl;
+		for(int i=0;i<U;i++){
+			myfile<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
+			cout<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
+		}
+		for(int i=0;i<U;i++){
+			myfile<<"H_pretranspose["<<i<<"]=\n"<<transpose(H_pre[i])<<"\n";
+		}
+		for(int i=0;i<U;i++){
+			myfile<<"h_hat["<<i<<"]=\n"<<h_hat_vec[i]<<"\n";
+		}
+		myfile<<"End \n";
+		myfile.close();
+	
+	}    
+    
     /* f_bu should be multiplied by normalizer*/
 
     for(int i=0;i<U;i++){
