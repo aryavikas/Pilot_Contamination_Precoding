@@ -337,16 +337,20 @@ int main(int argc, char *argv[]){
 	if(myfile.is_open()){
 		myfile<<"N0. of antenas="<<Nt<<endl;
 		for(int i=0;i<U;i++){
-			myfile<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
-			cout<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
+			for(int j=0;j<Nt;j++){
+				for(int k=0;k<Nt;k++){
+					myfile<<"H_pre["<<i<<"]=\n"<<H_pre[i][j][k]<<",";
+					//cout<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
+				}
+			}
 		}
-		for(int i=0;i<U;i++){
+		/*for(int i=0;i<U;i++){
 			myfile<<"H_pretranspose["<<i<<"]=\n"<<transpose(H_pre[i])<<"\n";
 		}
 		for(int i=0;i<U;i++){
 			myfile<<"h_hat["<<i<<"]=\n"<<h_hat_vec[i]<<"\n";
 		}
-		myfile<<"End \n";
+		myfile<<"End \n";*/
 		myfile.close();
 	
 	}    
