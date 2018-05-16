@@ -23,8 +23,8 @@ int main(int argc, char *argv[]){
 	int iter=1;	  // No. of iterations
 	int C=3;		  // # of cells in a network
 	int U=3;	      // # of active users in each cell (worst case)
-	int N=3;          // # of maximum transmitting antennas at each base station
-	int P=19; 	      // total length of past samples of y/h_bcu used (Samples for operating)
+	int N=2;          // # of maximum transmitting antennas at each base station
+	int P=9; 	      // total length of past samples of y/h_bcu used (Samples for operating)
 	it_file ff;
 	Real_Timer tt; 
 	tt.tic();
@@ -48,10 +48,10 @@ int main(int argc, char *argv[]){
 	P = atoi(argv[5]);
 	cout << "P = " << P << "\n";
 	}
-	int l=6;        // # of past samples considered 
+	int l=3;        // # of past samples considered 
 	vec final_sum_rate="0.0"; // stores the total sum
 	vec avg_sum_rate="0.0";   // average of data rates for U users
-	ivec Nt_vals = linspace_fixed_step(3, N, 10);                  //some change
+	ivec Nt_vals = linspace_fixed_step(2, N, 10);                  //some change
 	int Nt;	
 	int no_iterations_in_antenna;
 	no_iterations_in_antenna=((N-Nt_vals[0])/10)+1;
@@ -70,12 +70,12 @@ int main(int argc, char *argv[]){
 
 	EbN0dB=linspace(0.0,20,10);
 	EbN0=inv_dB(EbN0dB);
-	N0=Eb/EbN0;   //This will also work
+	N0=Eb/EbN0;   
 
 	cout<<"No. of Cells Selected ="<<C<<endl;
 	cout<<"No. of Users Selected ="<<U<<endl;
 	
-	//for(int Nt=20;Nt<=N;Nt+10){
+	//for(int Nt=20;Nt<=N;Nt=Nt+10){
 	for (int Nt : Nt_vals) {
          final_sum_rate="0.0";
          cout<<"No. of antennas at each base station ="<<Nt<<endl;
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]){
 	cvec hsbu_n_n_1[U]; // hsbu_n_n_1 means h stacked with n given n-1
 	cmat psbu_n_n[U];
 	cmat psbu_n_n_1[U];
-	cmat p_bu[U];
+	cmat p_bu[U];      // Storing error matrix in kalman equation
 	/* Initialisation of kalman filter */
 	for(int i=0;i<U;i++){
 	    for(int j=l-1;j>=0;j--){
@@ -246,7 +246,6 @@ int main(int argc, char *argv[]){
 	
 	/* Implementing kalman filter */
 	for(int p=0;p<U;p++){						// for a selected user
-
 	    cvec hsu_n_n_1;
 	    cmat psu_n_n_1;
 	    cvec hsu_n_n=hsbu_n_n[p];
@@ -292,7 +291,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Finding lambda for precoding matrix */
-	double lambda = 999900000*U;  // lagrangian lambda
+	double lambda = 0*U;  // lagrangian lambda
 	cvec f_bu[U];
 	cmat H_pre[U];
 	double lambda_b; // Normalizig factor to have avg transmit power constraint at b=0 base station
@@ -307,14 +306,49 @@ int main(int argc, char *argv[]){
 	vec sinr[U];
 	vec rate[U];
 	vec sum_rate="0.0";
-	
+	cmat H_fbu[U]; // H_fbu= real(H_pre + transpose(H_pre))
+	mat H_fbu_r[U];   // H_fbu_r = real(H_fbu)
+	mat U_fbu[U],V_fbu[U];
+	vec s_fbu[U];
+	cmat UhhtransU[U];  // UhhtransU[U]= transpose(U)*h_hat_vec* hermitian(h_hat_vec)*U
+	vec g[U];           // g[i] = real(diag(U'*h'h^H*U))
 	for(int i=0;i<U;i++){
 		H_pre[i]=outer_product(h_hat_vec[i],conj(h_hat_vec[i])) + P_bu[i];
-		f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
+		//cout<<"h hat="<<h_hat_vec[i]<<endl;
+		H_fbu[i]=H_pre[i] + transpose(H_pre[i]);
+		H_fbu_r[i]=real(H_fbu[i]);	
+		svd(H_fbu_r[i],U_fbu[i],s_fbu[i],V_fbu[i]);
+		UhhtransU[i]=U_fbu[i]*outer_product(h_hat_vec[i],conj(h_hat_vec[i]))*U_fbu[i];
+		g[i]=real(diag(UhhtransU[i]));
+		// precoded vector 
+		//f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
+	}
+	
+	// rel= (no. of terms to be convolved)(sequence length) - (no. of terms to be convolved-1)
+	int maxcoeffeq = (N*U)*(3) - ((N*U)-1);  // length when all the terms are multiplied together
+	vec eqcoeff[N*U]=zeros(maxcoeffeq); // coeff of lagrange equation 
+	for(int i=0;i<(N*U);i++){
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+			
 	}
     
     /* Saving vectors in data file*/
-/*	ofstream myfile ("pilot_contamination_data.txt");
+   /*ofstream myfile ("pilot_contamination_data.txt");
 	if(myfile.is_open()){
 		myfile<<"N0. of antenas="<<Nt<<endl;
 		for(int i=0;i<U;i++){
@@ -333,27 +367,38 @@ int main(int argc, char *argv[]){
 	*/	 
 
 	/* Saving vectors in csv file */
-	ofstream myfile("data_pilot_contamination.csv");
+	/*ofstream myfile("H_pre_data.csv");
 	if(myfile.is_open()){
-		myfile<<"N0. of antenas="<<Nt<<endl;
+		//myfile<<"N0. of antenas="<<Nt<<endl;
 		for(int i=0;i<U;i++){
+			cout<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
 			for(int j=0;j<Nt;j++){
 				for(int k=0;k<Nt;k++){
-					myfile<<"H_pre["<<i<<"]=\n"<<H_pre[i][j][k]<<",";
-					//cout<<"H_pre["<<i<<"]=\n"<<H_pre[i]<<"\n";
+					myfile<<H_pre[i](j,k)<<",";
+					
 				}
+				myfile<<"\n";
 			}
 		}
-		/*for(int i=0;i<U;i++){
+		for(int i=0;i<U;i++){
 			myfile<<"H_pretranspose["<<i<<"]=\n"<<transpose(H_pre[i])<<"\n";
 		}
 		for(int i=0;i<U;i++){
 			myfile<<"h_hat["<<i<<"]=\n"<<h_hat_vec[i]<<"\n";
 		}
-		myfile<<"End \n";*/
 		myfile.close();
-	
-	}    
+	}
+	ofstream hfile("h_hat_data.csv");
+	if(hfile.is_open()){
+		for(int i=0;i<U;i++){
+			cout<<"h_hat["<<i<<"]=\n"<<h_hat_vec[i]<<"\n";
+			for(int j=0;j<Nt;j++){
+				hfile<<h_hat_vec[i](j)<<",";
+			}	
+			hfile<<"\n";
+		}
+	hfile.close();
+	}*/
     
     /* f_bu should be multiplied by normalizer*/
 
@@ -368,7 +413,7 @@ int main(int argc, char *argv[]){
 	trace_lambda=trace(dumFb);
 	lambda_b=1.0; // see here
 	//lambda_b=1.0/real(trace_lambda);
-	cout<<"lambda_b "<<lambda_b<<endl;	
+	//cout<<"lambda_b "<<lambda_b<<endl;	
 	
 	// Multiplying with alpha_b*b=(sqrt(p_f * lambda_b)) to normalize f_bu
 	Fb= sqrt(pf * lambda_b)*Fb; // didn't normalize in calculating f_bu 
