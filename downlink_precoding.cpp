@@ -20,10 +20,10 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]){
-	int iter=1;	  // No. of iterations
+	int iter=200;	  // No. of iterations
 	int C=3;		  // # of cells in a network
 	int U=3;	      // # of active users in each cell (worst case)
-	int N=2;          // # of maximum transmitting antennas at each base station
+	int N=50;          // # of maximum transmitting antennas at each base station
 	int P=9; 	      // total length of past samples of y/h_bcu used (Samples for operating)
 	it_file ff;
 	Real_Timer tt; 
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]){
 	int l=3;        // # of past samples considered 
 	vec final_sum_rate="0.0"; // stores the total sum
 	vec avg_sum_rate="0.0";   // average of data rates for U users
-	ivec Nt_vals = linspace_fixed_step(2, N, 10);                  //some change
+	ivec Nt_vals = linspace_fixed_step(20, N, 10);                  //some change
 	int Nt;	
 	int no_iterations_in_antenna;
 	no_iterations_in_antenna=((N-Nt_vals[0])/10)+1;
@@ -306,7 +306,7 @@ int main(int argc, char *argv[]){
 	vec sinr[U];
 	vec rate[U];
 	vec sum_rate="0.0";
-	cmat H_fbu[U]; // H_fbu= real(H_pre + transpose(H_pre))
+	cmat H_fbu[U]; // H_fbu= H_pre + transpose(H_pre)
 	mat H_fbu_r[U];   // H_fbu_r = real(H_fbu)
 	mat U_fbu[U],V_fbu[U];
 	vec s_fbu[U];
@@ -314,39 +314,86 @@ int main(int argc, char *argv[]){
 	vec g[U];           // g[i] = real(diag(U'*h'h^H*U))
 	for(int i=0;i<U;i++){
 		H_pre[i]=outer_product(h_hat_vec[i],conj(h_hat_vec[i])) + P_bu[i];
-		//cout<<"h hat="<<h_hat_vec[i]<<endl;
 		H_fbu[i]=H_pre[i] + transpose(H_pre[i]);
 		H_fbu_r[i]=real(H_fbu[i]);	
 		svd(H_fbu_r[i],U_fbu[i],s_fbu[i],V_fbu[i]);
 		UhhtransU[i]=U_fbu[i]*outer_product(h_hat_vec[i],conj(h_hat_vec[i]))*U_fbu[i];
 		g[i]=real(diag(UhhtransU[i]));
+		cout<<"side wala matrix= "<<g[i]<<endl;
+		cout<<"lamda wala="<<s_fbu[i]<<endl;
 		// precoded vector 
 		//f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
 	}
 	
+	/* Constructing the polynomial equation */
 	// rel= (no. of terms to be convolved)(sequence length) - (no. of terms to be convolved-1)
+	// root equation length(rel) or number of terms in the lagrange equation
 	int maxcoeffeq = (N*U)*(3) - ((N*U)-1);  // length when all the terms are multiplied together
-	vec eqcoeff[N*U]=zeros(maxcoeffeq); // coeff of lagrange equation 
-	for(int i=0;i<(N*U);i++){
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-			
+	vec eqcoeff[U][N]; 			// coeff of lagrangian polynomial equation 
+	vec denpoly[U][N];
+	vec rooteqcoeff=zeros(maxcoeffeq);
+	rooteqcoeff(0)=1;
+
+	for(int i=0;i<U;i++){
+		for(int j=0;j<N;j++){	
+			vec denpolyvec=zeros(3);
+			denpolyvec(0)=4;
+			denpolyvec(1)=(4*g[i](j));	 //  second coefficient of the polynomial in denomiator
+			denpolyvec(2)=(g[i](j)*g[i](j));	 // third coefficient of the polynomial in denomiator
+			denpoly[i][j]=denpolyvec;
+			//cout<<"denpooly="<<denpoly[i][j]<<endl;
+		}
+	}
+	
+	for(int i=0;i<U;i++){
+		for(int j=0;j<N;j++){
+			eqcoeff[i][j]=zeros(maxcoeffeq);
+			eqcoeff[i][j](0)=1;
+			//cout<<"look i and j="<<i<<"  "<<j<<endl;
+			for(int k=0;k<U;k++){
+				for(int l=0;l<N;l++){
+					if(!(i==k && j==l)){
+						//cout<<"look at the sequence="<<k<<"  "<<l<<endl;
+						eqcoeff[i][j]=filter(denpoly[k][l], "1", eqcoeff[i][j]);
+					}
+				}
+			}
+			eqcoeff[i][j]=s_fbu[i](j)*eqcoeff[i][j];
+		}
 	}
     
+    for(int i=0;i<U;i++){
+		for(int j=0;j<N;j++){	
+			rooteqcoeff=filter(denpoly[i][j],"1",rooteqcoeff);
+		}
+	}
+    
+    for(int i=0;i<U;i++){
+		for(int j=0;j<N;j++){	
+			rooteqcoeff=rooteqcoeff - eqcoeff[i][j];
+		}
+	}
+	
+	double lambdaroots_real;
+	cvec roots_of_lambda=roots(rooteqcoeff);
+	cout<<"roots "<<roots_of_lambda<<endl;	
+	for(int i=0;i<(size(roots_of_lambda));i++){
+		if(real(roots_of_lambda(i))>0 & imag(roots_of_lambda(i))==0){
+			lambdaroots_real=real(roots_of_lambda(i));
+		}
+	}
+	 
+	cout<<"real roots="<<lambdaroots_real<<endl;
+	
+	lambda=lambdaroots_real;
+	for(int i=0;i<U;i++){
+		// precoded vector 
+		f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
+	}
+	
+	
+	
+	
     /* Saving vectors in data file*/
    /*ofstream myfile ("pilot_contamination_data.txt");
 	if(myfile.is_open()){
