@@ -388,7 +388,7 @@ int main(int argc, char *argv[]){
 	lambda=lambdaroots_real;
 	for(int i=0;i<U;i++){
 		// precoded vector 
-		f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
+		f_bu[i]=2*inv(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
 	}
 	
 	
