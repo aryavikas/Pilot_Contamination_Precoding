@@ -20,10 +20,10 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]){
-	int iter=200;	  // No. of iterations
+	int iter=20;	  // No. of iterations
 	int C=3;		  // # of cells in a network
 	int U=3;	      // # of active users in each cell (worst case)
-	int N=50;          // # of maximum transmitting antennas at each base station
+	int N=60;          // # of maximum transmitting antennas at each base station
 	int P=9; 	      // total length of past samples of y/h_bcu used (Samples for operating)
 	it_file ff;
 	Real_Timer tt; 
@@ -162,6 +162,7 @@ int main(int argc, char *argv[]){
     pl_dB=12.81+ 3.76* log10(d); // PL = 128.1 + 37.6 log_{10}(d)
     double pl;
     pl=1/(inv_dB(pl_dB));
+	
 	//cout<<"path loss"<<pl<<endl; // pl = 0.0466729
     /* Multiply pl with H_pbc[0][c] c=1:C-1 */
     for(int p=0;p<P;p++){
@@ -201,7 +202,9 @@ int main(int argc, char *argv[]){
 
     for(int i=0;i<U;i++){
 		//cout<<"alpha_bcu a value"<<alpha_bcu[0][0][i]<<endl;
-		a_bb[i]=pow(alpha_bcu[0][0][i], v);
+		//a_bb[i]=pow(alpha_bcu[0][0][i], v);
+		a_bb[i]=zeros(l);
+        a_bb[i](0)=alpha_bcu[0][0][i];
 		//cout<<"a vec"<<a_bb[i]<<endl;
     }
 
@@ -319,39 +322,42 @@ int main(int argc, char *argv[]){
 		svd(H_fbu_r[i],U_fbu[i],s_fbu[i],V_fbu[i]);
 		UhhtransU[i]=U_fbu[i]*outer_product(h_hat_vec[i],conj(h_hat_vec[i]))*U_fbu[i];
 		g[i]=real(diag(UhhtransU[i]));
-		cout<<"side wala matrix= "<<g[i]<<endl;
-		cout<<"lamda wala="<<s_fbu[i]<<endl;
+		//cout<<"side wala matrix= "<<g[i]<<endl;
+		//cout<<"lamda wala="<<s_fbu[i]<<endl;
 		// precoded vector 
-		//f_bu[i]=2*(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
+		//f_bu[i]=2*inv(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
 	}
 	
 	/* Constructing the polynomial equation */
 	// rel= (no. of terms to be convolved)(sequence length) - (no. of terms to be convolved-1)
 	// root equation length(rel) or number of terms in the lagrange equation
-	int maxcoeffeq = (N*U)*(3) - ((N*U)-1);  // length when all the terms are multiplied together
-	vec eqcoeff[U][N]; 			// coeff of lagrangian polynomial equation 
-	vec denpoly[U][N];
+	int maxcoeffeq = (Nt*U)*(3) - ((Nt*U)-1);  // length when all the terms are multiplied together
+	vec eqcoeff[U][Nt]; 			// coeff of lagrangian polynomial equation 
+	vec denpoly[U][Nt];
 	vec rooteqcoeff=zeros(maxcoeffeq);
 	rooteqcoeff(0)=1;
 
 	for(int i=0;i<U;i++){
-		for(int j=0;j<N;j++){	
+		for(int j=0;j<Nt;j++){	
 			vec denpolyvec=zeros(3);
+			if( abs(g[i](j)) < 1e-4){
+				g[i](j)=0;
+			}
 			denpolyvec(0)=4;
 			denpolyvec(1)=(4*g[i](j));	 //  second coefficient of the polynomial in denomiator
 			denpolyvec(2)=(g[i](j)*g[i](j));	 // third coefficient of the polynomial in denomiator
 			denpoly[i][j]=denpolyvec;
-			//cout<<"denpooly="<<denpoly[i][j]<<endl;
+			cout<<"denpooly="<<denpoly[i][j]<<endl;
 		}
 	}
 	
 	for(int i=0;i<U;i++){
-		for(int j=0;j<N;j++){
+		for(int j=0;j<Nt;j++){
 			eqcoeff[i][j]=zeros(maxcoeffeq);
 			eqcoeff[i][j](0)=1;
 			//cout<<"look i and j="<<i<<"  "<<j<<endl;
 			for(int k=0;k<U;k++){
-				for(int l=0;l<N;l++){
+				for(int l=0;l<Nt;l++){
 					if(!(i==k && j==l)){
 						//cout<<"look at the sequence="<<k<<"  "<<l<<endl;
 						eqcoeff[i][j]=filter(denpoly[k][l], "1", eqcoeff[i][j]);
@@ -363,20 +369,20 @@ int main(int argc, char *argv[]){
 	}
     
     for(int i=0;i<U;i++){
-		for(int j=0;j<N;j++){	
+		for(int j=0;j<Nt;j++){	
 			rooteqcoeff=filter(denpoly[i][j],"1",rooteqcoeff);
 		}
 	}
     
     for(int i=0;i<U;i++){
-		for(int j=0;j<N;j++){	
+		for(int j=0;j<Nt;j++){	
 			rooteqcoeff=rooteqcoeff - eqcoeff[i][j];
 		}
 	}
 	
 	double lambdaroots_real;
 	cvec roots_of_lambda=roots(rooteqcoeff);
-	cout<<"roots "<<roots_of_lambda<<endl;	
+	//cout<<"roots "<<roots_of_lambda<<endl;	
 	for(int i=0;i<(size(roots_of_lambda));i++){
 		if(real(roots_of_lambda(i))>0 & imag(roots_of_lambda(i))==0){
 			lambdaroots_real=real(roots_of_lambda(i));
@@ -385,10 +391,11 @@ int main(int argc, char *argv[]){
 	 
 	cout<<"real roots="<<lambdaroots_real<<endl;
 	
+
 	lambda=lambdaroots_real;
 	for(int i=0;i<U;i++){
 		// precoded vector 
-		f_bu[i]=2*inv(2*lambda*eye(Nt) + H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i]; // alpha n b multiplication pending
+		f_bu[i]=2*inv(2*lambda*eye(Nt) +  H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i] ; // alpha n b multiplication pending
 	}
 	
 	
@@ -513,8 +520,8 @@ int main(int argc, char *argv[]){
 	for(int i=0;i<U;i++){
 		noise[i]=randn_c(1);
 	}
-	int noise_power=10;
-	int interference_power=10;
+	int noise_power=1;
+	int interference_power=1;
 	
 	/* Data Rate */
 	for(int i=0;i<U;i++){
