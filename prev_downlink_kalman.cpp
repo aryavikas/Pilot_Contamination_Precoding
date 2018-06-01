@@ -18,10 +18,10 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]) {
-	int iter=10;		// No. of iterations
+	int iter=100;		// No. of iterations
 	int C=3;		// # of cells in a network
-	int U=12;	    // # of active users in each cell (worst case)
-	int N=20;       // # of maximum transmitting antennas at each base station
+	int U=3;	    // # of active users in each cell (worst case)
+	int N=40;       // # of maximum transmitting antennas at each base station
 	int P=19; 	    // total length of past samples of y/h_bcu used
 	it_file ff;
 	Real_Timer tt; 
@@ -68,16 +68,15 @@ int main(int argc, char *argv[]) {
 
     EbN0dB=linspace(0.0,20,10);
     EbN0=inv_dB(EbN0dB);
-    N0=Eb/EbN0;   //This will also work
+    N0=Eb/EbN0;   
 
-	cout<<"No. of Cells Selected ="<<C<<endl;
-    cout<<"No. of Users Selected ="<<U<<endl;
-    cout<<"No. of antennas at each base station ="<<Nt<<endl;
+	cout<<"No. of Cells Selected = "<<C<<endl;
+    cout<<"No. of Users Selected = "<<U<<endl;
     
-    
-    
+
     for (int Nt : Nt_vals) {
          final_sum_rate="0.0";
+         cout<<"No. of antennas at each base station ="<<Nt<<endl;
          for (int it = 0; it < iter; ++it) {
 			cout<<"The iteration number is ="<<it<<endl;         
      
@@ -91,7 +90,7 @@ int main(int argc, char *argv[]) {
     
     // Corr matrix of the channel coefficients
     cmat R_bcu[C][C][U];
-    cmat Rsqr_bcu[C][C][U];  // Rsqr_bcu represents the square root of the corresponding complex matrix
+    cmat Rsqr_bcu[C][C][U];  // Rsqr_bcu is the square root of the corresponding correlation complex matrix
 
     for(int i=0;i<C;i++) {
     	for(int j=0;j<C;j++){
@@ -119,7 +118,7 @@ int main(int argc, char *argv[]) {
 	vec alpha_bcu[C][C];  // alpha with range 0.005 to 0.05 uniformly
     for(int i=0;i<C;i++) {
 		for(int j=0;j<C;j++){
-			vec fDTs= 0.1 + (0.3-0.1)*randu(U);
+			vec fDTs= 0.005 + (0.05-0.005)*randu(U);
 		    alpha_bcu[i][j]=besselj(0,2*3.14*fDTs);
 		    //cout<<alpha_bcu[i][j][k]<<endl;
 		}
@@ -162,8 +161,9 @@ int main(int argc, char *argv[]) {
     double d=1.35;  // in Km
     pl_dB=12.81+ 3.76* log10(d);
     double pl;
-    pl=1/(inv_dB(pl_dB));
-
+    //pl=1/(inv_dB(pl_dB));
+	pl=1/(inv_dB(pl_dB));
+	
     /* Multiply pl with H_pbc[0][c] c=1:C-1 */
     for(int p=0;p<P;p++){
 	    for(int i=1;i<C;i++){
@@ -171,7 +171,6 @@ int main(int argc, char *argv[]) {
 	        //cout<<H_pbc[p][0][i]<<endl;
         }
     }
-    
     
     cvec sum_hpbcu[P][U];
 	for(int p=0;p<P;p++){
@@ -204,7 +203,9 @@ int main(int argc, char *argv[]) {
 
     for(int i=0;i<U;i++){
 		//cout<<"alpha_bcu a value"<<alpha_bcu[0][0][i]<<endl;
-		a_bb[i]=pow(alpha_bcu[0][0][i], v);
+		//a_bb[i]=pow(alpha_bcu[0][0][i], v);
+		a_bb[i]=zeros(l);
+        a_bb[i](0)=alpha_bcu[0][0][i];
 		//cout<<"a vec"<<a_bb[i]<<endl;
     }
 
@@ -264,7 +265,7 @@ int main(int argc, char *argv[]) {
             hsu_n_n_1=kron(A_u[p],eye(Nt))*hsu_n_n;
             psu_n_n_1=kron(A_u[p],eye(Nt))*psu_n_n*hermitian_transpose(kron(A_u[p],eye(Nt)))+Q_w;
             k_gain_p=psu_n_n_1* hermitian_transpose(c_kron)* inv(c_kron*psu_n_n_1*hermitian_transpose(c_kron)+ c_kron*Qv*hermitian_transpose(c_kron));
-            hsu_n_n=hsu_n_n_1+k_gain_p*(y_tilde[i][p]-((c_kron*hsu_n_n_1).get_col(0))); // U did this bcoz c_kron*hsu_n_n_1 is a cvec of form cmat
+            hsu_n_n=hsu_n_n_1+k_gain_p*(y_tilde[i][p]-((c_kron*hsu_n_n_1).get_col(0))); // c_kron*hsu_n_n_1 is a cvec of form cmat
             psu_n_n=( eye(Nt*l)-(k_gain_p*c_kron) )*psu_n_n_1;
 			
             // populate arrays
@@ -288,6 +289,7 @@ vec sum_rate="0.0";
 /* Signal power */
 cmat Fb;
 Fb.set_size(Nt,U);
+Fb=zeros_c(Nt,U);
 for(int i=0;i<U;i++){
 	//cout<<"h_hat["<<i<<"] = "<<h_hat[i]<<endl;
 	cvec h_hat_vec=h_hat[i];
@@ -296,13 +298,21 @@ for(int i=0;i<U;i++){
 	//cout<<h_hat_vec;
 	//cout<<"Fb["<<i<<"] = "<<Fb<<endl;
 }
+
+/* Zero forcing*/
+cmat Fb_dagger;  // hermitian transpose of Fb
+cmat Fb_inv;     //  (Fb * Fb_dagger)^{-1}
+Fb_dagger=hermitian_transpose(Fb);	
+Fb_inv=inv(Fb * Fb_dagger);
+Fb=Fb_dagger * Fb_inv;
+/* Normalising of zero forcing decoder*/
 double lambda_b; //this is for 0th cell
 cmat dumFb=Fb*hermitian_transpose(Fb);
 std::complex< double > trace_lambda;
 trace_lambda=trace(dumFb);
-lambda_b=1.0/real(trace_lambda);
+lambda_b=1.0/sqrt(real(trace_lambda));
 //cout<<"lambda_b "<<lambda_b<<endl;	
-
+//Fb=lambda_b* Fb;    // Normalising the zero forcing matrix
 for(int i=0;i<U;i++){
 	y_downlink[i]="0+0i";
 	//cout<<"h_pbcu[P-1][0][0][i] = "<<h_pbcu[P-1][0][0][i]<<endl;
@@ -356,8 +366,8 @@ interference_pow=int_pow;
 for(int i=0;i<U;i++){
 	noise[i]=randn_c(1);
 }
-int noise_power=10;
-int interference_power=10;
+int noise_power=1;
+int interference_power=1;
 /* Data Rate */
 for(int i=0;i<U;i++){
 	sig_pow[i]=sqr(abs(y_downlink[i]));
@@ -377,7 +387,7 @@ sum_rate=sum_rate+rate[i];
 final_sum_rate+=sum_rate;
 //cout<<"Total sum rate = "<<sum_rate<<endl;
 }
-                //cout<<"final_sum_rate "<<final_sum_rate<<endl;
+         //cout<<"final_sum_rate "<<final_sum_rate<<endl;
                 avg_sum_rate=final_sum_rate/iter;
 
                 cout<<"average of sum rates for "<<Nt<<" antennas "<<avg_sum_rate<<endl;
