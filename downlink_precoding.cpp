@@ -20,10 +20,10 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]){
-	int iter=20;	  // No. of iterations
+	int iter=100;	  // No. of iterations
 	int C=3;		  // # of cells in a network
 	int U=3;	      // # of active users in each cell (worst case)
-	int N=60;          // # of maximum transmitting antennas at each base station
+	int N=5;          // # of maximum transmitting antennas at each base station
 	int P=9; 	      // total length of past samples of y/h_bcu used (Samples for operating)
 	it_file ff;
 	Real_Timer tt; 
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]){
 	int l=3;        // # of past samples considered 
 	vec final_sum_rate="0.0"; // stores the total sum
 	vec avg_sum_rate="0.0";   // average of data rates for U users
-	ivec Nt_vals = linspace_fixed_step(20, N, 10);                  //some change
+	ivec Nt_vals = linspace_fixed_step(5, N, 10);                  //some change
 	int Nt;	
 	int no_iterations_in_antenna;
 	no_iterations_in_antenna=((N-Nt_vals[0])/10)+1;
@@ -280,6 +280,7 @@ int main(int argc, char *argv[]){
 	Fb=zeros_c(Nt,U);
 	cvec h_hat_vec[U];
 	cmat P_bu[U]; // P_bu is extraction from stacked p_bu
+		
 	/*Extracting p_bu from stacked version of p_bu */
 	for(int i=0;i<U;i++){									
 		//cout<<"h_hat["<<i<<"] = "<<h_hat[i]<<endl;
@@ -292,6 +293,54 @@ int main(int argc, char *argv[]){
 		P_bu[i]=P_bu[i]*transpose(c_kron);
 		//cout<<"P_bu "<<i<<"] = "<<P_bu[i]<<endl;
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	/* Zero forcing*/
+	/*cmat Fb_zeroforce;
+	cmat Fb_dagger;  // hermitian transpose of Fb
+	cmat Fb_inv;     //  (Fb * Fb_dagger)^{-1}
+	Fb_dagger=hermitian_transpose(Fb);	
+	Fb_inv=inv(Fb * Fb_dagger);
+	Fb_zeroforce=Fb_dagger * Fb_inv;
+	// Normalising of zero forcing decoder
+	double lambda_b_z; //this is for 0th cell
+	cmat dumFb_z=Fb_zeroforce*hermitian_transpose(Fb_zeroforce);
+	std::complex< double > trace_lambda_z;
+	trace_lambda_z=trace(dumFb_z);
+	lambda_b_z=1.0/sqrt(real(trace_lambda_z));
+	//cout<<"lambda_b "<<lambda_b<<endl;	
+	Fb_zeroforce=lambda_b_z* Fb_zeroforce;    // Normalising the zero forcing matrix
+	*/
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	/* Finding lambda for precoding matrix */
 	double lambda = 0*U;  // lagrangian lambda
@@ -319,7 +368,9 @@ int main(int argc, char *argv[]){
 		H_pre[i]=outer_product(h_hat_vec[i],conj(h_hat_vec[i])) + P_bu[i];
 		H_fbu[i]=H_pre[i] + transpose(H_pre[i]);
 		H_fbu_r[i]=real(H_fbu[i]);	
+		//cout<<"look here ="<<H_fbu[i]<<endl;
 		svd(H_fbu_r[i],U_fbu[i],s_fbu[i],V_fbu[i]);
+		//cout<<"look here ="<<H_fbu_r[i]<<endl;
 		UhhtransU[i]=U_fbu[i]*outer_product(h_hat_vec[i],conj(h_hat_vec[i]))*U_fbu[i];
 		g[i]=real(diag(UhhtransU[i]));
 		//cout<<"side wala matrix= "<<g[i]<<endl;
@@ -340,14 +391,14 @@ int main(int argc, char *argv[]){
 	for(int i=0;i<U;i++){
 		for(int j=0;j<Nt;j++){	
 			vec denpolyvec=zeros(3);
-			if( abs(g[i](j)) < 1e-4){
+			if( abs(g[i](j)) < 1e-7){
 				g[i](j)=0;
 			}
 			denpolyvec(0)=4;
 			denpolyvec(1)=(4*g[i](j));	 //  second coefficient of the polynomial in denomiator
 			denpolyvec(2)=(g[i](j)*g[i](j));	 // third coefficient of the polynomial in denomiator
 			denpoly[i][j]=denpolyvec;
-			cout<<"denpooly="<<denpoly[i][j]<<endl;
+			//cout<<"denpooly="<<denpoly[i][j]<<endl;
 		}
 	}
 	
@@ -388,14 +439,14 @@ int main(int argc, char *argv[]){
 			lambdaroots_real=real(roots_of_lambda(i));
 		}
 	}
-	 
-	cout<<"real roots="<<lambdaroots_real<<endl;
+	 /* roots of the polynomial lagrangian equation */
+	//cout<<"real roots="<<lambdaroots_real<<endl;
 	
 
 	lambda=lambdaroots_real;
 	for(int i=0;i<U;i++){
 		// precoded vector 
-		f_bu[i]=2*inv(2*lambda*eye(Nt) +  H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i] ; // alpha n b multiplication pending
+		f_bu[i]=(2*inv(2*lambda*eye(Nt) +  H_pre[i] + transpose(H_pre[i])) * h_hat_vec[i] ); // alpha n b multiplication pending
 	}
 	
 	
@@ -461,17 +512,20 @@ int main(int argc, char *argv[]){
 		Fb.set_col(i,f_bu[i]);
 		//cout<<"Fb["<<i<<"] = "<<Fb<<endl;
 	}
-	
-	cmat dumFb=Fb*hermitian_transpose(Fb);
+
+	cmat dumFb = Fb * hermitian_transpose(Fb);
 	std::complex< double > trace_lambda;
 	trace_lambda=trace(dumFb);
-	lambda_b=1.0; // see here
-	//lambda_b=1.0/real(trace_lambda);
+	//lambda_b=1.0; // see here
+	lambda_b=1.0/sqrt(real(trace_lambda));
 	//cout<<"lambda_b "<<lambda_b<<endl;	
 	
 	// Multiplying with alpha_b*b=(sqrt(p_f * lambda_b)) to normalize f_bu
 	Fb= sqrt(pf * lambda_b)*Fb; // didn't normalize in calculating f_bu 
-	lambda_b=1.0/real(trace_lambda);//see here
+	lambda_b=1.0/sqrt(real(trace_lambda));//see here
+	Fb=lambda_b*Fb;
+		
+
 	/* Calculating signal component in the downlink signal */
 	for(int i=0;i<U;i++){
 		y_downlink[i]="0+0i";
@@ -491,11 +545,13 @@ int main(int argc, char *argv[]){
 			dummy_Fc.set_col(j,h_pbcu[P-1][i][i][j]);		
 		}
 		Fc[i-1] =pl*dummy_Fc;
+		dummy_Fc=Fc[i-1];
 		//cout<<"Fc["<<i<<"-1] "<<Fc[i-1]<<endl;
 		cmat dumFc=dummy_Fc*hermitian_transpose(dummy_Fc);
-		std::complex< double > trace_lambda;
-		trace_lambda=trace(dumFc);
-		lambda_c(i-1)=1.0/real(trace_lambda);
+		std::complex< double > trace_lambda_c;
+		trace_lambda_c=trace(dumFc);
+		lambda_c(i-1)=1.0/sqrt(real(trace_lambda_c));
+		Fc[i-1] = lambda_c(i-1)*Fc[i-1];
 		//cout<<"lambda_c "<<i<<"="<<lambda_c[i-1]<<endl;	
 	}
 
