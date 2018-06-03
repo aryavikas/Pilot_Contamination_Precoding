@@ -18,7 +18,7 @@ namespace itpp {
 };
 
 int main(int argc, char *argv[]) {
-	int iter=100;		// No. of iterations
+	int iter=1;		// No. of iterations
 	int C=3;		// # of cells in a network
 	int U=3;	    // # of active users in each cell (worst case)
 	int N=40;       // # of maximum transmitting antennas at each base station
@@ -65,7 +65,6 @@ int main(int argc, char *argv[]) {
     double Eb=Ec/2.0;
     vec EbN0dB,N0,EbN0;
 
-
     EbN0dB=linspace(0.0,20,10);
     EbN0=inv_dB(EbN0dB);
     N0=Eb/EbN0;   
@@ -73,8 +72,8 @@ int main(int argc, char *argv[]) {
 	cout<<"No. of Cells Selected = "<<C<<endl;
     cout<<"No. of Users Selected = "<<U<<endl;
     
-
-    for (int Nt : Nt_vals) {
+	for(int Nt=20;Nt<=N;Nt=Nt+10){
+    //for (int Nt : Nt_vals) {
          final_sum_rate="0.0";
          cout<<"No. of antennas at each base station ="<<Nt<<endl;
          for (int it = 0; it < iter; ++it) {
@@ -140,7 +139,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	/* Combining all channel coefficients of all users for a given cell to a given base station */
+	/* Combining all channel coefficients of all users for a given cell to a given base station in matrix */
     cmat H_pbc[P][C][C];
 	for(int p=0;p<P;p++){
     	for(int i=0;i<C;i++){
@@ -196,8 +195,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
-    vec a_bb[U];
+    vec a_bb[U];     // first row of state matrix in Kalman eq
     vec v=linspace(1,l,l);
     //cout<<v<<endl;
 
@@ -312,7 +310,7 @@ std::complex< double > trace_lambda;
 trace_lambda=trace(dumFb);
 lambda_b=1.0/sqrt(real(trace_lambda));
 //cout<<"lambda_b "<<lambda_b<<endl;	
-//Fb=lambda_b* Fb;    // Normalising the zero forcing matrix
+Fb=lambda_b* Fb;    // Normalising the zero forcing matrix
 for(int i=0;i<U;i++){
 	y_downlink[i]="0+0i";
 	//cout<<"h_pbcu[P-1][0][0][i] = "<<h_pbcu[P-1][0][0][i]<<endl;
@@ -337,12 +335,15 @@ for(int i=1;i<C;i++){
 		dummy_Fc.set_col(j,h_pbcu[P-1][i][i][j]);		
 	}
 	Fc[i-1] =pl*dummy_Fc;
+	dummy_Fc=Fc[i-1];   
 	//cout<<"Fc["<<i<<"-1] "<<Fc[i-1]<<endl;
 	cmat dumFc=dummy_Fc*hermitian_transpose(dummy_Fc);
-    std::complex< double > trace_lambda;
-	trace_lambda=trace(dumFc);
-	lambda_c(i-1)=1.0/real(trace_lambda);
-	//cout<<"lambda_c "<<i<<"="<<lambda_c[i-1]<<endl;	
+    std::complex< double > trace_lambda_c;
+	trace_lambda_c=trace(dumFc);
+	lambda_c(i-1)=1.0/sqrt(real(trace_lambda_c));
+	//cout<<"lambda_c "<<i<<"="<<lambda_c[i-1]<<endl;
+	Fc[i-1]=lambda_c(i-1)*	Fc[i-1];
+	dummy_Fc=zeros_c(Nt,U);
 }
 
 
