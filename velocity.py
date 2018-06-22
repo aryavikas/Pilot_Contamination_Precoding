@@ -15,32 +15,42 @@ datam2=[22.1208,29.725,35.6455,39.5561,43.3205,46.191]
 dataz3=[4.39814,5.25755,18.974,22.7756,24.4496,26.6526]
 datam3=[0.646878,1.35403,2.26649,2.69753,4.09157,4.25345]
 
+fig = plt.figure()
+ax = plt.subplot(111)
+#plt.hold(True)
+
 
 line1, = plt.plot(x,dataz1, 'ro', label="$f_DT_s: 0.005-0.05$", linestyle=':',lw=3, ms=9.0)
+line1plot, = plt.plot(x,dataz1, 'ro', label="Zero Forcing", linestyle=':',lw=3, ms=9.0)
 #line2, = plt.plot(x,datam1, 'ro--', label="$f_DT_s: 0.005-0.05$", lw=3, ms=9.0)
-line2, = plt.plot(x,datam1, 'ro', label="$MMSE Precoder$",linestyle='-' ,lw=3, ms=9.0)
+line2, = plt.plot(x,datam1, 'ro', label="MMSE Precoder",linestyle='-' ,lw=3, ms=9.0)
 line3, = plt.plot(x,dataz2, 'g^', label="$f_DT_s: 0.05-0.1$",linestyle=':', lw=3, ms=9.0)
 line4, = plt.plot(x,datam2, 'g^', label="$f_DT_s: 0.05-0.1$", linestyle='-',lw=3, ms=12.0)
 #line5, = plt.plot(x,dataz3, 'b*-', label="$f_DT_s: 0.1-0.2$", lw=3, ms=9.0)
-line5, = plt.plot(x,dataz3, 'b*', label="$Zero Forcing$",linestyle=':', lw=3, ms=9.0)
+line5, = plt.plot(x,dataz3, 'b*', label="$f_DT_s: 0.1-0.2$",linestyle=':', lw=3, ms=9.0)
 line6, = plt.plot(x,datam3, 'b*', label="$f_DT_s: 0.1-0.2$",linestyle='-', lw=3, ms=9.0)
 
-#first_legend = plt.legend(handles=[line1,line3,line6], loc='upper right',bbox_to_anchor=(1.0,0.45))
-first_legend = plt.legend(handles=[line1,line3,line6], loc=1)
+#first_legend = plt.legend(handles=[line1,line3,line6], loc=7,bbox_to_anchor=(1.0,0.45))
+first_legend = plt.legend(handles=[line1,line3,line5], loc=10)
+
+#plt.legend(bbox_to_anchor=(1.04,1), loc="upper left")
+
+box = ax.get_position()
+ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+
+
 
 ax = plt.gca().add_artist(first_legend)
 
 #second_legend = plt.legend(handles=[line2,line5], loc='center')
-plt.legend(handles=[line2,line5], loc=4)
+#plt.legend(handles=[line2,line5], loc='best')
+plt.legend(handles=[line2,line1plot], loc='best')
+
 
 plt.xlabel('Number of antennas')
 plt.ylabel('Average Sum Rate [bps/Hz]')
 
 plt.grid()
 plt.show()
-
-
-
-
-
-
